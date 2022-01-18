@@ -1,56 +1,92 @@
 const express = require("express");
-const app = express();
+const { MongoClient, ObjectId } = require("mongodb");
 
-app.use(express.json()); //Sinaliza que o Express que o body das requisições estará sempre estruturado en json
+const url = "mongodb://localhost:27017";
+// const url = "mongodb+srv://admin:hd2rV5duoPrrIi3t@cluster0.jup2c.mongodb.net/";
 
-//Endpoint "/"
-app.get("/", function (req, res) {
-    res.send("Hello World");
-});
+const dbName = "Laboratorio_bancodedados_herois";
 
-const lista = ["Mulher Maravilha", "Capitã Marvel", "Homem de Ferro"];
+async function main() {
+    // Conexão com o Banco de Dados
 
-//[GET] "/herois" -Read All ler todos os registros
-app.get("/herois", function (req, res) {
-    res.send(lista);
-});
+    const client = await MongoClient.connect(url);
 
-//[GET] "/herois/:id" -Read Single (by id) ler um registro por id.
-app.get("/herois/:id", function (req, res) {
-    const id = req.params.id - 1;
+    const db = client.db(dbName);
 
-    const item = lista[id];
+    const collection = db.collection("herois");
 
-    res.send(item);
-});
+    // Aplicação em Express
 
-//[POST] "/herois" Create - Criar um registro
-app.post("/herois", function (req, res) {
-    const item = req.body.nome;
+    const app = express();
 
-    lista.push(item);
+    // Sinalizo para o Express que o body das requisições
+    // estará sempre estruturado em JSON
+    app.use(express.json());
 
-    res.send("Item adicionado com sucesso");
-});
+    // Endpoint "/"
+    app.get("/", function (req, res) {
+        res.send("Hello, World!");
+    });
 
-//[PUT] "/heoris/:id" Update- atualiza um registro
-app.put("/herois/:id", function (req, res) {
-    const id = req.params.id - 1;
+    // Endpoint "/oi"
+    app.get("/oi", function (req, res) {
+        res.send("Olá, mundo!");
+    });
 
-    const item = req.body;
+    const lista = ["Mulher Maravilha", "Capitã Marvel", "Homem de Ferro"];
+    //              0                   1                2
 
-    lista[id] = item.nome;
+    // [GET] "/herois" - Read All (Ler todos os registros)
+    app.get("/herois", async function (req, res) {
+        const documentos = await collection.find().toArray();
 
-    res.send("Atualizado com sucesso");
-});
+        res.send(documentos);
+    });
 
-//[DELETE] "/herois/:id" Delete - Remover um registro
-app.delete("/herois/:id", function (req, res) {
-    const id = req.params.id - 1;
+    // [GET] "/herois/:id" - Read Single (by Id) (Ler um registro pelo ID)
+    app.get("/herois/:id", async function (req, res) {
+        const id = req.params.id;
 
-    delete lista[id];
+        const item = await collection.findOne({ _id: new ObjectId(id) });
 
-    res.send("Deletado com sucesso");
-});
+        res.send(item);
+    });
 
-app.listen(3000);
+    // [POST] "/herois" - Create (Criar um registro)
+    app.post("/herois", async function (req, res) {
+        const item = req.body;
+
+        await collection.insertOne(item);
+
+        res.send(item);
+    });
+
+    // [PUT] "/herois/:id" - Update (Atualizar um registro)
+    app.put("/herois/:id", async function (req, res) {
+        const id = req.params.id;
+
+        const item = req.body;
+
+        await collection.updateOne(
+            { _id: new ObjectId(id) },
+            {
+                $set: item,
+            }
+        );
+
+        res.send(item);
+    });
+
+    // [DELETE] "/herois/:id" - Delete (Remover um registro)
+    app.delete("/herois/:id", async function (req, res) {
+        const id = req.params.id;
+
+        await collection.deleteOne({ _id: new ObjectId(id) });
+
+        res.send("Item removido com sucesso.");
+    });
+
+    app.listen(3000);
+}
+
+main();
